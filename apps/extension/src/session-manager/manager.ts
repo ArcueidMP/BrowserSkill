@@ -17,6 +17,8 @@ export interface SessionContext {
   agentCreatedTabs: Set<number>;
   /** Observed same-window popups: controllable, but preserved by session stop. */
   observedTabs?: Set<number>;
+  /** Unclassified arrivals and failed external moves must not become implicit tool targets. */
+  pendingRoutingTabs?: Set<number>;
   createdAtMs: number;
 }
 
@@ -51,7 +53,7 @@ export interface SessionStartOptions {
   noAutoDialog?: boolean;
   /** Optional Agent Window outer size in CSS pixels. */
   size?: { width: number; height: number };
-  /** Defaults to true so existing clients keep visible Agent Windows. */
+  /** Background by default; true explicitly opens the window in front. */
   focused?: boolean;
   /** Cancellation for the transactional Agent Window startup sequence. */
   signal?: AbortSignal;

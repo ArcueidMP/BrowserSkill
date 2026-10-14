@@ -463,13 +463,13 @@ const SESSION_ID_MAX_RESERVE_ATTEMPTS: u32 = 64;
 
 /// Agent Window creation hints forwarded to the extension on
 /// `tool.session_start`. `None` fields keep the extension-side defaults
-/// (focused window, browser-chosen size).
+/// (background window, browser-chosen size).
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AgentWindowOptions {
     pub no_auto_dialog: Option<bool>,
     /// Optional outer size as `(width, height)` CSS pixels.
     pub size: Option<(u32, u32)>,
-    /// Optional focus hint (`None` = extension default: focused).
+    /// Optional focus hint (`None` = extension default: background).
     pub focused: Option<bool>,
 }
 
