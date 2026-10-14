@@ -35,7 +35,7 @@ export function registerDialogTool(
           throw new Error("text requires dialogAction=accept");
         if (args.dialogId !== undefined && args.dialogAction === "status")
           throw new Error("dialogId requires accept or dismiss");
-        const session = deps.registry.resolve(args.session, "browser_page(action=dialog)");
+        const session = deps.registry.resolve(args.session, "bsk_page(action=dialog)");
         const command = ["dialog", args.dialogAction, "--session", session];
         appendTabId(command, args.tabId);
         if (args.dialogId !== undefined) command.push("--dialog-id", args.dialogId);

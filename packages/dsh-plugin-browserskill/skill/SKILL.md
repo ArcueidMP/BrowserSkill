@@ -1,6 +1,6 @@
 ---
 name: browser-skill
-description: Automate the user's logged-in Chromium through this plugin's injected browser_* tools. Use to read pages, fill forms, operate tabs, inspect page activity, debug a website, or test a UI.
+description: Automate the user's logged-in Chromium through this plugin's injected bsk_* tools. Use to read pages, fill forms, operate tabs, inspect page activity, debug a website, or test a UI.
 ---
 
 # browser-skill for DeepSeek Harness
@@ -26,19 +26,19 @@ For remote setup/pairing, follow the [remote guide](https://github.com/Tencent/B
    For a new page:
 
    ```text
-   browser_session({ action: "start" })
-   browser_page({ action: "navigate", session: "<id>", url: "https://example.com" })
-   browser_inspect({ action: "observe", session: "<id>" })
+   bsk_session({ action: "start" })
+   bsk_page({ action: "navigate", session: "<id>", url: "https://example.com" })
+   bsk_inspect({ action: "observe", session: "<id>" })
    ```
 
 2. For an existing user tab, read [tab borrowing](references/tabs-and-profiles.md) first. Use real IDs/refs, not
    examples. Pass `session` when more than one exists; never use foreign IDs.
 3. Observe after page changes; check ambiguous results once. Stop when success is
    visible. Stop requested video first, then on success or failure call
-   `browser_session({ action: "stop", session: "<id>" })` unless the user wants it
+   `bsk_session({ action: "stop", session: "<id>" })` unless the user wants it
    kept open. Stopping returns borrowed tabs, leaving them open in the user's window.
 
-Confirm/prompt dialogs need `browser_page(action=dialog)`; alert/beforeunload auto-accept.
+Confirm/prompt dialogs need `bsk_page(action=dialog)`; alert/beforeunload auto-accept.
 
 ## Read and interact
 
@@ -54,7 +54,7 @@ exact markup, and `screenshot` for visuals.
 To fill an observed field `@e3`:
 
 ```text
-browser_interact({ action: "fill", session: "<id>", target: "@e3", value: "text" })
+bsk_interact({ action: "fill", session: "<id>", target: "@e3", value: "text" })
 ```
 
 Refs invalidate after navigation or large DOM changes; observe again.
@@ -75,8 +75,8 @@ directory. Read only matching files before acting.
 | When | Read |
 | --- | --- |
 | Website failure, request/performance investigation, reproduction evidence, or an HTTP experiment | [Website debugging](references/debugging.md) |
-| Required profile, borrowing/returning user tabs with `browser_tabs`, or remote tab ownership | [Tabs and profiles](references/tabs-and-profiles.md) |
-| Dialogs, hover, scroll, `nextCursor`, console/network, or window/device settings with `browser_assist` | [Interaction details](references/interaction-details.md) |
+| Required profile, borrowing/returning user tabs with `bsk_tabs`, or remote tab ownership | [Tabs and profiles](references/tabs-and-profiles.md) |
+| Dialogs, hover, scroll, `nextCursor`, console/network, or window/device settings with `bsk_assist` | [Interaction details](references/interaction-details.md) |
 | Screenshot or `[visual:screenshot]`/Canvas interaction | [Screenshots and Canvas](references/screenshots-and-canvas.md) |
 | Video recording or MP4 export | [Video](references/video.md) |
 | Login/CAPTCHA/OTP/consent/payment confirmation, disabled help, failed operations, or interrupted cleanup | [Human help and recovery](references/help-and-recovery.md) |
