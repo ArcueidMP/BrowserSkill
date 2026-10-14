@@ -17,6 +17,7 @@ pub mod emulate;
 pub mod ensure_daemon;
 pub mod error;
 pub mod evaluate;
+pub mod extract;
 pub mod get_html;
 pub mod human_loop;
 pub mod install_skill;
@@ -165,6 +166,8 @@ pub enum Command {
     /// Dump raw HTML for a tab or a snapshot ref.
     #[command(name = "get-html")]
     GetHtml(GetHtmlArgs),
+    /// Extract loaded tables/lists with column definitions and source metadata.
+    Extract(extract::ExtractArgs),
 
     /// Navigate the Agent Window's tab to a URL.
     Navigate(NavigateCommand),
@@ -199,7 +202,7 @@ pub enum Command {
     /// Remove focus from a snapshot ref or CSS selector.
     Blur(BlurArgs),
 
-    /// Fill an input / textarea / contenteditable.
+    /// Fill a text input, textarea, or contenteditable editor root.
     Fill(FillArgs),
 
     /// Dispatch a keyboard key combo.

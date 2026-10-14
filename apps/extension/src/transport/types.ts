@@ -4,6 +4,7 @@
 // sides without extra adapters.
 
 export type RpcId = string;
+export type { ExtractParams, ExtractResult } from "@/tools/extract/types";
 
 export type ErrorCode =
   | "unknown_method"
@@ -23,6 +24,14 @@ export type ErrorCode =
 export type RpcErrorReason =
   | "dialog_pending"
   | "dialog_execution_pending"
+  | "extract_params_invalid"
+  | "extract_target_stale"
+  | "extract_target_ambiguous"
+  | "extract_target_hidden"
+  | "extract_selector_invalid"
+  | "extract_structure_invalid"
+  | "extract_field_ambiguous"
+  | "extract_limit"
   | "ui_lookup_failed"
   | "task_unavailable"
   | "target_unavailable"

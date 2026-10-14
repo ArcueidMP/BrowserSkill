@@ -90,7 +90,7 @@ Prefer `observe` for text, controls and `@eN` refs. Navigation invalidates refs;
 large DOM changes can stale them too. Re-observe before the next interaction.
 Use refs for iframe/shadow-root targets; CSS selectors search the main document.
 
-Use refs from the current observation:
+Use a ref from the current observation:
 
 | Need | Command |
 | --- | --- |
@@ -116,6 +116,7 @@ Read relevant references before acting; do not preload them all.
 
 | When | Read |
 | --- | --- |
+| Table/list JSON/CSV export | [Extract](references/extraction.md) |
 | Website debugging, reproduction evidence, or request rules/replay | [Debugging](references/debugging.md) |
 | Required profile, existing user tab, multiple/background tabs, or remote tab ownership | [Tabs and profiles](references/tabs-and-profiles.md) |
 | Missing CLI, daemon startup failure, sandboxed startup, connection failure, or remote pairing | [Environment](references/environment.md) |
