@@ -126,4 +126,4 @@ operations. Status does not execute page JavaScript and remains usable while the
 page is blocked. Pending errors are distinct from the existing
 `dialog: type=... handled=accepted|dismissed message=...` lines, which describe
 already handled dialogs. These commands require CLI/daemon/extension support for
-protocol 1.4; update all components together.
+protocol 1.5; update all components together.

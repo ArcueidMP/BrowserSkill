@@ -9,7 +9,7 @@ cargo run -p bsk-protocol --bin dump-schema --locked
 ```
 
 
-## JavaScript dialogs (protocol 1.4)
+## JavaScript dialogs (protocol 1.5)
 
 `tool.dialog` takes `session_id`, optional `tab_id`, and an `action` of `status`,
 `accept`, or `dismiss`. Accept optionally takes `prompt_text`; omitted and empty

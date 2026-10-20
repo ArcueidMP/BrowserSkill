@@ -13,7 +13,7 @@ Starting from 0.2.0, CLI / Extension / DSH Plugin share the same version number.
   ([#359](https://github.com/Tencent/BrowserSkill/issues/359)). Confirm/prompt now
   wait for an explicit decision; `session start --no-auto-dialog` also leaves
   alert/beforeunload pending. Blocked commands report the dialog without replaying
-  the original browser action. Requires protocol 1.4 support.
+  the original browser action. Requires protocol 1.5 support.
 
 ## [0.3.3] - 2026-10-14
 

@@ -75,4 +75,4 @@ The original browser action may resume after handling; never replay it
 just because it returned `dialog_pending`. Inspect the page before continuing.
 If `execution_pending` is true, query status until it is false or another dialog
 appears. Handling returns any next pending dialog. These actions require matching
-CLI, daemon and extension support for protocol 1.4.
+CLI, daemon and extension support for protocol 1.5.

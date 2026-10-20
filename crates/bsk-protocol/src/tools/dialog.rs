@@ -7,7 +7,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const DIALOG_CONTROL_PROTOCOL: &str = "1.4";
+pub const DIALOG_CONTROL_PROTOCOL: &str = "1.5";
 
 pub fn supports_dialog_control(protocol: &str) -> bool {
     crate::system::compare_protocol(protocol, "2.0") == Some(std::cmp::Ordering::Less)
@@ -141,10 +141,10 @@ mod tests {
             status.pending.unwrap().dialog_type,
             JavaScriptDialogType::Prompt
         );
-        for version in ["1.0", "1.3", "2.0", "invalid"] {
+        for version in ["1.0", "1.3", "1.4", "2.0", "invalid"] {
             assert!(!supports_dialog_control(version));
         }
-        assert!(supports_dialog_control("1.4"));
+        assert!(supports_dialog_control("1.5"));
     }
 
     #[test]

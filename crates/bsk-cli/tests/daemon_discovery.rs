@@ -177,11 +177,11 @@ fn only_unsupported_operations_reject_a_legacy_daemon() {
     for (args, required_protocol) in [
         (
             vec!["dialog", "status", "--session", "abcd", "--json"],
-            "1.4",
+            "1.5",
         ),
         (
             vec!["session", "start", "--no-auto-dialog", "--json"],
-            "1.4",
+            "1.5",
         ),
         (
             vec![

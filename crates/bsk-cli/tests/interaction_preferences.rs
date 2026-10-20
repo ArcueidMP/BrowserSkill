@@ -392,7 +392,7 @@ async fn legacy_environment_without_a_daemon_returns_an_error_not_disabled() {
 
 #[tokio::test]
 async fn no_auto_dialog_is_forwarded_and_cannot_be_silently_ignored_by_older_extensions() {
-    for protocol in ["1.3", "1.4"] {
+    for protocol in ["1.4", "1.5"] {
         let (temp, mut daemon, mut ws) = start_with_protocol(protocol).await;
         let start = command(
             temp.path(),
@@ -406,7 +406,7 @@ async fn no_auto_dialog_is_forwarded_and_cannot_be_silently_ignored_by_older_ext
         )
         .spawn()
         .unwrap();
-        if protocol == "1.3" {
+        if protocol == "1.4" {
             let output = output(start).await;
             assert!(!output.status.success());
             let error: Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -415,7 +415,7 @@ async fn no_auto_dialog_is_forwarded_and_cannot_be_silently_ignored_by_older_ext
                 error["message"]
                     .as_str()
                     .unwrap()
-                    .contains("extension protocol 1.4")
+                    .contains("extension protocol 1.5")
             );
         } else {
             let request = next_request(&mut ws, Method::ToolSessionStart).await;

@@ -12,6 +12,9 @@ vi.mock("../instance-id", () => ({
 
 const { computeConnectedState } = __testing__;
 
+const [PROTOCOL_MAJOR, PROTOCOL_MINOR] = PROTOCOL_VERSION.split(".").map(Number);
+const NEXT_MINOR_PROTOCOL = `${PROTOCOL_MAJOR}.${PROTOCOL_MINOR + 1}`;
+
 function handshake(
   daemonProtocol: string,
   minCompatibleProtocol?: string,
@@ -29,23 +32,20 @@ function handshake(
 describe("computeConnectedState (protocol-based compat)", () => {
   it("returns connected when daemon protocol equals extension protocol", () => {
     expect(
-      computeConnectedState(
-        handshake(PROTOCOL_VERSION, MIN_COMPATIBLE_PROTOCOL),
-        MIN_COMPATIBLE_PROTOCOL,
-      ),
+      computeConnectedState(handshake(PROTOCOL_VERSION, PROTOCOL_VERSION), MIN_COMPATIBLE_PROTOCOL),
     ).toEqual({
       kind: "connected",
     });
   });
 
   it("returns version_skew when daemon protocol minor is newer", () => {
-    expect(computeConnectedState(handshake("1.5", "1.3"))).toEqual({
+    expect(computeConnectedState(handshake(NEXT_MINOR_PROTOCOL, PROTOCOL_VERSION))).toEqual({
       kind: "version_skew",
     });
   });
 
   it("returns version_skew when daemon protocol string differs but floor is satisfied", () => {
-    expect(computeConnectedState(handshake("1.3.0", "1.3"))).toEqual({
+    expect(computeConnectedState(handshake(`${PROTOCOL_VERSION}.0`, PROTOCOL_VERSION))).toEqual({
       kind: "version_skew",
     });
   });
@@ -59,11 +59,11 @@ describe("computeConnectedState (protocol-based compat)", () => {
   });
 
   it("rejects when extension is below daemon min_compatible_protocol", () => {
-    const result = computeConnectedState(handshake("1.3", "1.5"));
+    const result = computeConnectedState(handshake("1.3", NEXT_MINOR_PROTOCOL));
     expect(result.kind).toBe("rejected");
     if (result.kind === "rejected") {
       expect(result.reason).toContain("min_compatible_protocol");
-      expect(result.reason).toContain("1.5");
+      expect(result.reason).toContain(NEXT_MINOR_PROTOCOL);
     }
   });
 
@@ -81,6 +81,7 @@ describe("computeConnectedState (protocol-based compat)", () => {
     "1.0",
     "1.1",
     "1.2",
+    "1.3",
   ])("keeps a legacy daemon %s connected with compatibility guidance", (protocol) => {
     for (const floor of [undefined, "1.0"]) {
       expect(computeConnectedState(handshake(protocol, floor))).toEqual({ kind: "version_skew" });
@@ -239,10 +240,7 @@ describe("ConnectionController connectionEnabled", () => {
       onDisconnected,
     });
     const first = transport.send.mock.calls[0]?.[0] as { id: string };
-    transport.emitMessage({
-      id: first.id,
-      result: handshake(PROTOCOL_VERSION, MIN_COMPATIBLE_PROTOCOL),
-    });
+    transport.emitMessage({ id: first.id, result: handshake(PROTOCOL_VERSION, PROTOCOL_VERSION) });
     await vi.waitFor(() => expect(controller.snapshot().state).toBe("connected"));
 
     vi.mocked(getLabel).mockResolvedValueOnce("Work profile");
@@ -307,17 +305,11 @@ describe("ConnectionController connectionEnabled", () => {
     const second = transport.send.mock.calls[1]?.[0] as { id: string };
     expect(second.id).not.toBe(first.id);
 
-    transport.emitMessage({
-      id: first.id,
-      result: handshake(PROTOCOL_VERSION, MIN_COMPATIBLE_PROTOCOL),
-    });
+    transport.emitMessage({ id: first.id, result: handshake(PROTOCOL_VERSION, PROTOCOL_VERSION) });
     await Promise.resolve();
     expect(controller.snapshot().state).not.toBe("connected");
 
-    transport.emitMessage({
-      id: second.id,
-      result: handshake(PROTOCOL_VERSION, MIN_COMPATIBLE_PROTOCOL),
-    });
+    transport.emitMessage({ id: second.id, result: handshake(PROTOCOL_VERSION, PROTOCOL_VERSION) });
     await vi.waitFor(() => expect(controller.snapshot().state).toBe("connected"));
   });
 });

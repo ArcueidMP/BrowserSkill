@@ -467,6 +467,8 @@ const SESSION_ID_MAX_RESERVE_ATTEMPTS: u32 = 64;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AgentWindowOptions {
     pub no_auto_dialog: Option<bool>,
+    /// Opt in to Chrome's shared incognito browsing session.
+    pub incognito: bool,
     /// Optional outer size as `(width, height)` CSS pixels.
     pub size: Option<(u32, u32)>,
     /// Optional focus hint (`None` = extension default: background).
@@ -558,10 +560,29 @@ pub(crate) async fn start_session_recoverable(
     {
         return Err(StartSessionError::ExtensionError(RpcError {
             code: bsk_protocol::ErrorCode::Unsupported,
-            message:
-                "--no-auto-dialog requires extension protocol 1.4; update the browser extension"
-                    .into(),
+            message: format!(
+                "--no-auto-dialog requires extension protocol {}; update the browser extension",
+                bsk_protocol::tools::DIALOG_CONTROL_PROTOCOL,
+            ),
             data: None,
+        }));
+    }
+    if window.incognito
+        && !bsk_protocol::tools::supports_incognito_sessions(&client.extension_protocol_version)
+    {
+        return Err(StartSessionError::ExtensionError(RpcError {
+            code: ErrorCode::Unsupported,
+            message: format!(
+                "Incognito sessions require extension protocol {} (connected: {}); update the BrowserSkill extension and retry",
+                bsk_protocol::tools::INCOGNITO_SESSION_PROTOCOL,
+                client.extension_protocol_version,
+            ),
+            data: Some(serde_json::json!({
+                "reason": "unsupported_feature", "operation": "session start --incognito",
+                "component": "extension",
+                "required_protocol": bsk_protocol::tools::INCOGNITO_SESSION_PROTOCOL,
+                "actual_protocol": client.extension_protocol_version,
+            })),
         }));
     }
     let session_id = sessions
@@ -571,6 +592,7 @@ pub(crate) async fn start_session_recoverable(
         sessions.starting.lock().unwrap().insert(session_id.clone());
     }
     let params = SessionStartParams {
+        incognito: window.incognito,
         session_id: session_id.0.clone(),
         browser_instance_id: Some(client.id.0.clone()),
         width: window.size.map(|(width, _)| width),
@@ -1120,6 +1142,7 @@ mod link_tests {
                         no_auto_dialog: None,
                         size: None,
                         focused: Some(false),
+                        ..Default::default()
                     },
                     Duration::ZERO,
                     timeout,
