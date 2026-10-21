@@ -15,6 +15,15 @@ Starting from 0.2.0, CLI / Extension / DSH Plugin share the same version number.
   alert/beforeunload pending. Blocked commands report the dialog without replaying
   the original browser action. Requires protocol 1.5 support.
 
+### Fixed
+
+- CLI: argument parsing failures now honor `--json`, returning an
+  `invalid_params` error on stdout with `data.reason: "cli_parse_error"`
+  instead of leaving stdout empty. A misplaced `--session` / `--tab-id` now
+  explains that it belongs after a supporting subcommand, replacing the
+  misleading `--version` suggestion and usage line
+  ([#387](https://github.com/Tencent/BrowserSkill/issues/387)).
+
 ## [0.3.3] - 2026-10-14
 
 ### Changed
