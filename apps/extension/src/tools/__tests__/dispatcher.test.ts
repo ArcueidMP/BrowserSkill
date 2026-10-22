@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type CdpDebuggerApi, ChromiumCdp } from "@/browser-driver/chromium-cdp";
+import { CooperationController } from "@/cooperation/controller";
 import { SessionManager } from "@/session-manager/manager";
 import type { ConnectionStateHandler, FrameHandler, Transport } from "@/transport/transport";
 import type {
@@ -676,6 +677,7 @@ describe("ToolDispatcher", () => {
       }
       if (method === "Runtime.evaluate") {
         const expression = (params as { expression?: string }).expression ?? "";
+        if (expression === "document.visibilityState") return { result: { value: "visible" } } as T;
         if (expression.includes('return "absent"')) {
           return { result: { value: "clear" } } as T;
         }
@@ -761,7 +763,7 @@ describe("ToolDispatcher", () => {
     const remove = vi.fn(async () => {});
     const sessions = new SessionManager({
       agentWindow: {
-        create: vi.fn(async () => ({ windowId: 4242, initialTabIds: [] })),
+        create: vi.fn(async () => ({ windowId: 4242, initialTabIds: [7] })),
         remove,
         ensureActiveTab: vi.fn(async () => 1),
       },
@@ -786,7 +788,20 @@ describe("ToolDispatcher", () => {
       setUserAgentOverride: vi.fn(async () => {}),
       setTouchEmulationEnabled: vi.fn(async () => {}),
     };
-    const dispatcher = new ToolDispatcher({ transport, sessions, cdp: cdp as TestDispatcherCdp });
+    const cooperation = new CooperationController({
+      sessions,
+      readFrames: async () => new Map(),
+      resumeFrames: async () => {},
+      changed: vi.fn(),
+    });
+    cooperation.startSession("aa11");
+    const release = vi.spyOn(cooperation, "release");
+    const dispatcher = new ToolDispatcher({
+      transport,
+      sessions,
+      cdp: cdp as TestDispatcherCdp,
+      cooperation,
+    });
     dispatcher.start();
 
     deliver(makeRequest("tool.session_stop", { session_id: "aa11" }));
@@ -803,6 +818,9 @@ describe("ToolDispatcher", () => {
     });
     expect(sessions.has("aa11")).toBe(true);
     expect(remove).not.toHaveBeenCalled();
+    expect(release).not.toHaveBeenCalled();
+    expect(cooperation.hasSession("aa11")).toBe(true);
+    expect(cooperation.enabled(7)).toBe(true);
   });
 
   it("returns not_found when stopping an unknown session", async () => {
@@ -1820,6 +1838,149 @@ it("returns the pending dialog and releases a navigation event wait", async () =
     });
     expect(listeners.size).toBe(0);
     expect(dispatcher.inflightAbortControllers.size).toBe(0);
+  } finally {
+    dispatcher.stop();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("preserves the shared-control fence at the final native dialog decision", async () => {
+  const sessions = new SessionManager({
+    agentWindow: {
+      create: async () => ({ windowId: 100, initialTabIds: [7] }),
+      remove: async () => {},
+      ensureActiveTab: async () => 7,
+    },
+  });
+  await sessions.start("test");
+  const readFrames = vi.fn(() => new Promise<Map<number, never>>(() => {}));
+  const cooperation = new CooperationController({
+    sessions,
+    readFrames,
+    resumeFrames: async () => {},
+    changed: vi.fn(),
+  });
+  cooperation.startSession("test");
+  let lookups = 0;
+  const tab = { id: 7, windowId: 100, active: true, url: "https://example.test" };
+  vi.stubGlobal("chrome", {
+    tabs: {
+      get: async () => {
+        // The controller has approved the action; ownership changes while the
+        // handler resolves the target, before the native command is sent.
+        if (++lookups === 2) await cooperation.control(7, cooperation.view(7)!.revision, "hold");
+        return tab;
+      },
+      query: async () => [tab],
+    },
+  });
+  const answer = vi.fn();
+  const cdp = {
+    send: vi.fn(),
+    pendingDialog: () => ({ id: "d1", tab_id: 7, type: "confirm", message: "Decide", sequence: 1 }),
+    handleDialog: answer,
+  } as unknown as TestDispatcherCdp;
+  const { transport, sent, deliver } = fakeTransport();
+  const dispatcher = new ToolDispatcher({ transport, sessions, cdp, cooperation });
+  try {
+    dispatcher.start();
+    deliver(makeRequest("tool.dialog", { session_id: "test", action: "accept", dialog_id: "d1" }));
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({
+      error: {
+        code: "permission_denied",
+        data: { reason: "cooperation_sync_required", effect_state: "none" },
+      },
+    });
+    expect(answer).not.toHaveBeenCalled();
+    expect(readFrames).not.toHaveBeenCalled();
+  } finally {
+    dispatcher.stop();
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([
+  undefined,
+  "expired-context",
+])("reports the task tab's modal when another tab is active (context: %s)", async (context_id) => {
+  const sessions = new SessionManager({
+    agentWindow: {
+      create: async () => ({ windowId: 100, initialTabIds: [7] }),
+      remove: async () => {},
+      ensureActiveTab: async () => 7,
+    },
+  });
+  await sessions.start("test");
+  const cooperation = new CooperationController({
+    sessions,
+    readFrames: async () => new Map(),
+    resumeFrames: async () => {},
+    changed: vi.fn(),
+  });
+  cooperation.startSession("test");
+  vi.stubGlobal("chrome", {
+    tabs: {
+      get: async (id: number) => ({ id, windowId: 100 }),
+      query: async () => [{ id: 99, windowId: 100, active: true }],
+    },
+  });
+  const send = vi.fn();
+  const cdp = {
+    send,
+    pendingDialog: (id: number) =>
+      id === 7 ? { id: "d1", tab_id: 7, type: "confirm", message: "Decide", sequence: 1 } : null,
+  } as unknown as TestDispatcherCdp;
+  const f = fakeTransport();
+  const dispatcher = new ToolDispatcher({ transport: f.transport, sessions, cdp, cooperation });
+  try {
+    dispatcher.start();
+    f.deliver(makeRequest("tool.snapshot", { session_id: "test", context_id }));
+    await vi.waitFor(() => expect(f.sent).toHaveLength(1));
+    expect(f.sent[0]).toMatchObject({
+      error: { data: { reason: "dialog_pending", dialog: { id: "d1", tab_id: 7 } } },
+    });
+    expect(send).not.toHaveBeenCalled();
+  } finally {
+    dispatcher.stop();
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([
+  "user_aborted",
+  "cancelled",
+])("does not replace %s with a concurrent dialog warning", async (code) => {
+  const sessions = new SessionManager({
+    agentWindow: {
+      create: async () => ({ windowId: 100, initialTabIds: [7] }),
+      remove: async () => {},
+      ensureActiveTab: async () => 7,
+    },
+  });
+  await sessions.start("test");
+  const cooperation = new CooperationController({
+    sessions,
+    readFrames: async () => new Map(),
+    resumeFrames: async () => {},
+    changed: vi.fn(),
+  });
+  cooperation.startSession("test");
+  const tab = { id: 7, windowId: 100, active: true };
+  vi.stubGlobal("chrome", { tabs: { get: async () => tab, query: async () => [tab] } });
+  let pending: import("@/transport/types").PendingJavaScriptDialog | null = null;
+  vi.spyOn(cooperation, "run").mockImplementation(async () => {
+    pending = { id: "d1", tab_id: 7, type: "confirm", message: "Decide", sequence: 1 };
+    return { code, message: "The operation was stopped" };
+  });
+  const cdp = { send: vi.fn(), pendingDialog: () => pending } as unknown as TestDispatcherCdp;
+  const f = fakeTransport();
+  const dispatcher = new ToolDispatcher({ transport: f.transport, sessions, cdp, cooperation });
+  try {
+    dispatcher.start();
+    f.deliver(makeRequest("tool.snapshot", { session_id: "test" }));
+    await vi.waitFor(() => expect(f.sent).toHaveLength(1));
+    expect(f.sent[0]).toMatchObject({ error: { code, message: "The operation was stopped" } });
   } finally {
     dispatcher.stop();
     vi.unstubAllGlobals();

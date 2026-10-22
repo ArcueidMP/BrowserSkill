@@ -16,6 +16,7 @@ export type ErrorCode =
   | "cdp_failed"
   | "protocol_error"
   | "cancelled"
+  | "user_aborted"
   | "version_too_old"
   | "multiple_browsers_online"
   | "no_browser_connected";
@@ -24,6 +25,7 @@ export type ErrorCode =
 export type RpcErrorReason =
   | "dialog_pending"
   | "dialog_execution_pending"
+  | "cooperation_sync_required"
   | "extract_params_invalid"
   | "extract_target_stale"
   | "extract_target_ambiguous"
@@ -217,7 +219,7 @@ export interface DialogParams {
   tab_id?: number;
   action: "status" | "accept" | "dismiss";
   prompt_text?: string;
-  /** Reject a stale decision after a user or another caller changes the dialog. */
+  /** Required for shared-tab decisions; rejects a stale or replaced dialog. */
   dialog_id?: string;
 }
 

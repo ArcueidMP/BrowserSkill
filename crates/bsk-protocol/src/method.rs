@@ -21,6 +21,8 @@ pub enum MethodEffect {
 /// Namespaced method string (`system.handshake`, `tool.tab_list`, …).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Method {
+    #[serde(rename = "tool.cooperate")]
+    ToolCooperate,
     #[serde(rename = "tool.video")]
     ToolVideo,
     /// Extension-only local history API; browser identity comes from the peer.
@@ -247,8 +249,9 @@ impl Method {
             | Method::ToolSessionStart
             | Method::ToolSessionStop => MethodEffect::ControlPlane,
 
-            // System / control. Dialog/debug/video mutations are gated by params below.
+            // Control-plane methods with parameter-sensitive mutation gates below.
             Method::ToolDialog
+            | Method::ToolCooperate
             | Method::ToolDebug
             | Method::ToolVideo
             | Method::AuditRequest

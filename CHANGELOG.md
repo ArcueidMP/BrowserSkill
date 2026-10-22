@@ -10,10 +10,12 @@ Starting from 0.2.0, CLI / Extension / DSH Plugin share the same version number.
 ### Added
 
 - CLI/Extension/DSH: inspect, accept, dismiss and fill native JavaScript dialogs
-  ([#359](https://github.com/Tencent/BrowserSkill/issues/359)). Confirm/prompt now
-  wait for an explicit decision; `session start --no-auto-dialog` also leaves
-  alert/beforeunload pending. Blocked commands report the dialog without replaying
-  the original browser action. Requires protocol 1.5 support.
+  ([#359](https://github.com/Tencent/BrowserSkill/issues/359)). Shared tabs leave
+  all four dialog types pending; decisions require the observed dialog ID and
+  respect human control. Outside shared control, confirm/prompt wait for a
+  decision and `session start --no-auto-dialog` also leaves alert/beforeunload
+  pending. Blocked commands report the dialog without replaying the original
+  browser action. Requires protocol 1.5 support.
 
 ### Fixed
 

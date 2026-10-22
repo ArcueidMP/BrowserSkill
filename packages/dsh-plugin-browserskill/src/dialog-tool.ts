@@ -22,7 +22,10 @@ export function registerDialogTool(
           description:
             "Prompt text for accept; omit to keep the default, or pass an empty string to clear it.",
         },
-        dialogId: { type: "string", description: "Only handle this pending dialog ID." },
+        dialogId: {
+          type: "string",
+          description: "Pending dialog ID from status; required for shared-tab accept/dismiss.",
+        },
       },
       output: {
         schema: { type: "json" },

@@ -93,9 +93,9 @@ Use `bsk --help` to find navigation/history, tab, wait and window commands.
 
 ## Native JavaScript dialogs
 
-`confirm()` and `prompt()` stay pending until you decide. `alert()` and
-`beforeunload` are accepted automatically by default; start with
-`bsk session start --no-auto-dialog` to leave all four types pending.
+`confirm()` and `prompt()` stay pending until you decide. Shared tabs also leave
+`alert()` and `beforeunload` pending, respecting human control. Outside shared
+control those two types auto-accept unless the session uses `--no-auto-dialog`.
 Native JS dialogs are separate from HTML modal elements and need these commands:
 
 ```sh
@@ -104,8 +104,13 @@ bsk dialog accept "prompt text" --session <id> --tab-id <tab> --dialog-id <dialo
 bsk dialog dismiss --session <id> --tab-id <tab> --dialog-id <dialog>
 ```
 
-`--tab-id` defaults to the selected tab. The optional `--dialog-id` binds a decision
-to the ID reported by status, so a stale decision cannot answer a later dialog.
+`--tab-id` defaults to the task-bound tab. Shared-tab accept/dismiss requires
+`--dialog-id` from status or the pending error. This identifies the observed modal
+without a DOM context or renderer read, which a modal can block. Status remains
+available during human control; decisions respect human editing, hold and Stop.
+If control is held, the person must resolve the modal or release control first.
+After handling, run `cooperate sync` before another page action. Outside shared
+control the ID remains optional, but protects against answering a later dialog.
 Omit text to keep a prompt's default, or pass `""` to submit an empty string.
 `--text=<text>` is the named alternative, including text starting with `-`.
 Text is only valid for accepting a prompt. Dismissing `beforeunload` chooses Stay;

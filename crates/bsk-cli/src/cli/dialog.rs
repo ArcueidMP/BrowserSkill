@@ -40,7 +40,7 @@ pub struct DialogTargetArgs {
 pub struct DialogHandleArgs {
     #[command(flatten)]
     pub target: DialogTargetArgs,
-    /// Only answer this dialog ID, as returned by status or a dialog_pending error.
+    /// Pending ID from status or dialog_pending; required for shared-tab decisions.
     #[arg(long)]
     pub dialog_id: Option<String>,
 }

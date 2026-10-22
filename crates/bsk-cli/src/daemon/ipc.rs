@@ -285,6 +285,7 @@ pub fn full_handler(status: DaemonStatus, state: Arc<DaemonState>) -> RpcHandler
                 | Method::ToolNetwork
                 | Method::ToolSnapshot
                 | Method::ToolObserve
+                | Method::ToolCooperate
                 | Method::ToolGetHtml
                 | Method::ToolExtract
                 | Method::ToolNavigate
@@ -504,7 +505,11 @@ async fn handle_tool_dispatch(
             Err(error) => ResponseBody::Err(error.into_rpc()),
         };
     }
-    let audit_id = params.get("_audit_id").cloned();
+    // Transfer staging normalizes typed params; retain the caller's observation binding.
+    let metadata: Vec<_> = ["_audit_id", "context_id", "depends_on"]
+        .into_iter()
+        .filter_map(|key| params.get(key).cloned().map(|value| (key, value)))
+        .collect();
     let mut params = params;
     if method == Method::ToolTabBorrow {
         // Old CLI clients can still send this field. Never forward their
@@ -573,25 +578,28 @@ async fn handle_tool_dispatch(
         download_transfer_id = Some(staging.transfer_id);
         params = serde_json::to_value(download).unwrap_or(Value::Null);
     }
-    if let Some(audit_id) = audit_id
-        && let Some(object) = params.as_object_mut()
-    {
-        object.insert("_audit_id".into(), audit_id);
+    if let Some(object) = params.as_object_mut() {
+        for (key, value) in metadata {
+            object.insert(key.into(), value);
+        }
     }
     let entry = inflight_guard.entry();
-    // Dialog decisions and recording stop must reach the extension even while
-    // the operation they unblock holds the ordinary session busy lock.
-    let outcome = if matches!(method, Method::ToolRecordStop | Method::ToolDialog) {
-        state
-            .tool_queues
-            .dispatch_unlocked(&session_id, method.clone(), params, timeout, Some(entry))
-            .await
-    } else {
-        state
-            .tool_queues
-            .dispatch(&session_id, method.clone(), params, timeout, Some(entry))
-            .await
-    };
+    // Dialog decisions, recording stop and cooperation reads must reach the
+    // extension while the ordinary operation they unblock holds the busy lock.
+    let independent_control = method == Method::ToolCooperate
+        && params.get("action").and_then(Value::as_str) != Some("enable");
+    let outcome =
+        if matches!(method, Method::ToolRecordStop | Method::ToolDialog) || independent_control {
+            state
+                .tool_queues
+                .dispatch_unlocked(&session_id, method.clone(), params, timeout, Some(entry))
+                .await
+        } else {
+            state
+                .tool_queues
+                .dispatch(&session_id, method.clone(), params, timeout, Some(entry))
+                .await
+        };
     drop(inflight_guard);
     match outcome {
         Ok(v) if method == Method::ToolDownload => {
@@ -904,6 +912,17 @@ fn tool_dispatch_timeout(params: &Value) -> Result<Duration, RpcError> {
 }
 
 fn tool_dispatch_transport_timeout(method: &Method, params: &Value) -> Result<Duration, RpcError> {
+    if *method == Method::ToolCooperate {
+        let parsed: bsk_protocol::tools::CooperateParams =
+            serde_json::from_value(params.clone())
+                .map_err(|error| invalid_params(error.to_string()))?;
+        if parsed.timeout_ms.is_some_and(|ms| ms > 25_000) {
+            return Err(invalid_params("cooperation wait is bounded to 25000ms"));
+        }
+        // The renderer owns the wait deadline. Leave room for collection and its reply,
+        // including the zero-duration status check; sync uses the ordinary read budget.
+        return Ok(DEFAULT_TOOL_TIMEOUT);
+    }
     if *method == Method::ToolTabBorrow {
         let ms = params
             .get("confirmation_timeout_ms")
@@ -2037,6 +2056,25 @@ mod tests {
 
         let err = tool_dispatch_timeout(&params).unwrap_err();
         assert_eq!(err.code, ErrorCode::InvalidParams);
+    }
+
+    #[test]
+    fn cooperation_wait_deadline_leaves_time_for_the_renderer_reply() {
+        for wait_ms in [0, 900, 25_000] {
+            let params =
+                serde_json::json!({"session_id":"s1", "action":"wait", "timeout_ms":wait_ms});
+            assert!(
+                tool_dispatch_transport_timeout(&Method::ToolCooperate, &params).unwrap()
+                    > Duration::from_millis(wait_ms)
+            );
+        }
+        assert!(
+            tool_dispatch_transport_timeout(
+                &Method::ToolCooperate,
+                &serde_json::json!({"session_id":"s1", "action":"wait", "timeout_ms":25_001})
+            )
+            .is_err()
+        );
     }
 
     #[tokio::test]
