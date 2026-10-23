@@ -217,7 +217,8 @@ function defineBrowserOperations(deps: ToolDeps, register: DefinitionRegistrar):
       description:
         "Start a new browser session: opens an Agent Window in the connected browser and returns " +
         "its session id. The new session becomes the current session for subsequent bsk_* calls. " +
-        "Optionally navigate to an initial URL and/or apply a mobile device emulation preset.",
+        "Optionally navigate to an initial URL and/or apply a mobile device emulation preset. " +
+        "Set incognito to open an Agent Window isolated from the profile's ordinary browsing state.",
       parameters: {
         url: {
           type: "string",
@@ -240,6 +241,12 @@ function defineBrowserOperations(deps: ToolDeps, register: DefinitionRegistrar):
           type: "boolean",
           description:
             "Background by default. Set false to explicitly open the Agent Window in front.",
+        },
+        incognito: {
+          type: "boolean",
+          description:
+            "Open an incognito Agent Window (requires Allow in incognito). Incognito sessions " +
+            "cannot borrow tabs and are isolated from the profile's ordinary browsing state.",
         },
         browser: BROWSER_PARAM,
         device: {
@@ -293,6 +300,7 @@ function defineBrowserOperations(deps: ToolDeps, register: DefinitionRegistrar):
         if (args.noFocus === true) startArgs.push("--no-focus");
         if (args.noFocus === false) startArgs.push("--focus");
         if (args.noAutoDialog === true) startArgs.push("--no-auto-dialog");
+        if (args.incognito === true) startArgs.push("--incognito");
         if (args.browser !== undefined) startArgs.push("--browser", args.browser);
         let reply: { session_id: string; browser_instance_id: string };
         try {
@@ -416,6 +424,7 @@ function defineBrowserOperations(deps: ToolDeps, register: DefinitionRegistrar):
         title: cmdline(deps, [
           "session",
           "start",
+          ...(args.incognito === true ? ["--incognito"] : []),
           ...(args.device !== undefined ? ["+ emulate", args.device] : []),
           ...(args.url !== undefined ? ["+ navigate", args.url] : []),
         ]),
